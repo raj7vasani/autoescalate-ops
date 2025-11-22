@@ -3,8 +3,19 @@
 spring:
   config.activate.on-profile: default
   sql.init.platform: h2
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 cds:
   data-source.auto-config.enabled: false
+---
+# SAP Build Process Automation Configuration
+spa:
+  baseUrl: "TODO: Add your SPA base URL (e.g., https://spa-api.cfapps.eu10.hana.ondemand.com)"
+  environmentId: "TODO: Add your environment ID"
+  apiKey: "TODO: Add your API key"
+  definitionId: "TODO: Add your workflow definition ID"
 ---
 management:
   endpoint:
