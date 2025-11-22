@@ -1,21 +1,31 @@
 
 ---
 spring:
-  config.activate.on-profile: default
+  config.activate.on-profile: ${SPRING_PROFILES_ACTIVE:default}
   sql.init.platform: h2
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:testdb}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:true}
+  security:
+    enabled: ${SECURITY_ENABLED:false}
 cds:
   data-source.auto-config.enabled: false
+
+server:
+  port: ${SERVER_PORT:8080}
 ---
 # SAP Build Process Automation Configuration
 spa:
-  baseUrl: "TODO: Add your SPA base URL (e.g., https://spa-api.cfapps.eu10.hana.ondemand.com)"
-  environmentId: "TODO: Add your environment ID"
-  apiKey: "TODO: Add your API key"
-  definitionId: "TODO: Add your workflow definition ID"
+  baseUrl: ${SPA_BASE_URL:https://spa-api-gateway-bpi-eu-prod.cfapps.eu10.hana.ondemand.com}
+  environmentId: ${SPA_ENVIRONMENT_ID:hackatum}
+  apiKey: ${SPA_API_KEY:QBvlzsXZoiatJbK9cca98l0tQRCKxSss}
+  definitionId: ${SPA_DEFINITION_ID:}
 ---
 management:
   endpoint:
