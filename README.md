@@ -80,7 +80,7 @@ SAP-Build/
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/raj7vasani/autoescalate-ops.git
    cd SAP-Build
    ```
 
