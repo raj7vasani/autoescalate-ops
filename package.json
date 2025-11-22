@@ -22,5 +22,8 @@
         "kind": "sqlite"
       }
     }
-  }
+  },
+  "sapux": [
+    "app/issuetracker"
+  ]
 }
