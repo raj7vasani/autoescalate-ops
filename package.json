@@ -9,10 +9,18 @@
     "watch": "cds watch"
   },
   "devDependencies": {
+    "@cap-js/sqlite": "^2.0.4",
     "@sap/cds-dk": "^9.4.1"
   },
   "dependencies": {
-    "@sap/cds": "^7.9.0",
+    "@sap/cds": "^9.4.0",
     "sqlite3": "^5.1.7"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite"
+      }
+    }
   }
 }
