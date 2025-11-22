@@ -1,16 +1,23 @@
 package customer.autoescalate_ops.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import customer.autoescalate_ops.config.SPAProperties;
+import customer.autoescalate_ops.entity.Issue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
+import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class SPAClient {
@@ -25,45 +32,85 @@ public class SPAClient {
         this.spaProperties = spaProperties;
     }
 
-    public void startWorkflow(UUID issueId, String title, String priority, String type) {
-        try {
-            String url = buildWorkflowUrl();
-            Map<String, Object> requestBody = buildRequestBody(issueId, title, priority, type);
-
-            logger.info("Starting SPA workflow for issue: {}", issueId);
-
-            webClient.post()
-                    .uri(url)
-                    .header("Authorization", "Bearer " + spaProperties.getApiKey())
-                    .header("Content-Type", "application/json")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .doOnSuccess(response -> logger.info("Successfully started workflow for issue {}: {}", issueId, response))
-                    .doOnError(error -> logger.error("Failed to start workflow for issue {}: {}", issueId, error.getMessage()))
-                    .onErrorResume(WebClientResponseException.class, ex -> {
-                        logger.error("SPA API error for issue {}: Status={}, Body={}", issueId, ex.getStatusCode(), ex.getResponseBodyAsString());
-                        return Mono.empty();
-                    })
-                    .subscribe();
-
-        } catch (Exception e) {
-            logger.error("Exception while starting workflow for issue {}: {}", issueId, e.getMessage(), e);
-        }
+    public void startWorkflow(Issue issue) {
+        startWorkflowWithApiKey(issue)
+                .doOnSuccess(response -> logger.info("Successfully started workflow for issue {}: {}", issue.getId(), response))
+                .doOnError(error -> logger.error("Failed to start workflow for issue {}: {}", issue.getId(), error.getMessage()))
+                .onErrorResume(WebClientResponseException.class, ex -> {
+                    logger.error("SPA API error for issue {}: Status={}, Body={}", issue.getId(), ex.getStatusCode(), ex.getResponseBodyAsString());
+                    return Mono.empty();
+                })
+                .subscribe();
     }
 
-    private String buildWorkflowUrl() {
-        return String.format("%s/workflow/rest/v1/workflow-instances?environmentId=%s",
-                spaProperties.getBaseUrl(),
-                spaProperties.getEnvironmentId());
+    private Mono<String> fetchToken() {
+        String authHeader = "Basic " + Base64.getEncoder().encodeToString(
+                (spaProperties.getClientId() + ":" + spaProperties.getClientSecret()).getBytes()
+        );
+
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("grant_type", "client_credentials");
+
+        logger.info("Fetching OAuth token from: {}", spaProperties.getTokenUrl());
+
+        return webClient.post()
+                .uri(spaProperties.getTokenUrl())
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData(formData))
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .map(json -> json.get("access_token").asText())
+                .doOnSuccess(token -> logger.info("Successfully retrieved OAuth token"))
+                .doOnError(error -> logger.error("Failed to fetch OAuth token: {}", error.getMessage()));
     }
 
-    private Map<String, Object> buildRequestBody(UUID issueId, String title, String priority, String type) {
+    private Mono<String> startWorkflowWithToken(String token, Issue issue) {
+        String url = spaProperties.getBaseUrl() + "/public/workflow/rest/v1/workflow-instances";
+        Map<String, Object> requestBody = buildRequestBody(issue);
+
+        logger.info("Starting SPA workflow for issue: {} at URL: {}", issue.getId(), url);
+
+        return webClient.post()
+                .uri(url)
+                .header("Authorization", "Bearer " + token)
+                .header("X-Environment-Id", spaProperties.getEnvironmentId())
+                .header("X-API-Key", spaProperties.getApiKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(String.class);
+    }
+
+    private Mono<String> startWorkflowWithApiKey(Issue issue) {
+        String url = spaProperties.getBaseUrl() + "/public/workflow/rest/v1/workflow-instances";
+        Map<String, Object> requestBody = buildRequestBody(issue);
+
+        logger.info("Starting SPA workflow for issue: {} at URL: {} (using API Key only)", issue.getId(), url);
+
+        return webClient.post()
+                .uri(url)
+                .header("X-Environment-Id", spaProperties.getEnvironmentId())
+                .header("X-API-Key", spaProperties.getApiKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(String.class);
+    }
+
+    private Map<String, Object> buildRequestBody(Issue issue) {
+        Map<String, Object> startEvent = new HashMap<>();
+        startEvent.put("issueid", issue.getId().toString());
+        startEvent.put("title", issue.getTitle());
+        startEvent.put("description", issue.getDescription() != null ? issue.getDescription() : "");
+        startEvent.put("type", issue.getType());
+        startEvent.put("priority", issue.getPriority());
+        startEvent.put("location", issue.getLocation() != null ? issue.getLocation() : "");
+        startEvent.put("severity", issue.getSeverity() != null ? issue.getSeverity() : 0);
+        startEvent.put("date", issue.getReportedAt().format(DateTimeFormatter.ISO_DATE_TIME));
+
         Map<String, Object> context = new HashMap<>();
-        context.put("issueId", issueId.toString());
-        context.put("title", title);
-        context.put("priority", priority);
-        context.put("type", type);
+        context.put("startEvent", startEvent);
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("definitionId", spaProperties.getDefinitionId());

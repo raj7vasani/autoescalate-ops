@@ -63,12 +63,7 @@ public class IssueService {
         Issue savedIssue = issueRepository.save(issue);
 
         // Trigger SAP Build Process Automation workflow
-        spaClient.startWorkflow(
-                savedIssue.getId(),
-                savedIssue.getTitle(),
-                savedIssue.getPriority(),
-                savedIssue.getType()
-        );
+        spaClient.startWorkflow(savedIssue);
 
         return toResponse(savedIssue);
     }

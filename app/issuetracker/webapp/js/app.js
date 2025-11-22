@@ -3,14 +3,15 @@
 import { getIssues, getIssueById, createIssue, updateIssue } from './api.js';
 
 // Application state
-let currentView = 'list';
+let currentView = 'kanban';
 let currentFilters = {};
 let currentIssue = null;
+let draggedIssue = null;
 
 // Initialize app on load
 document.addEventListener('DOMContentLoaded', () => {
     renderApp();
-    loadIssuesList();
+    loadKanbanBoard();
 });
 
 // Main app render function
@@ -18,11 +19,13 @@ function renderApp() {
     const container = document.getElementById('app-container');
     container.innerHTML = `
         <nav class="nav-tabs">
-            <button class="nav-tab active" data-view="list">Issues List</button>
+            <button class="nav-tab active" data-view="kanban">Kanban Board</button>
+            <button class="nav-tab" data-view="list">Issues List</button>
             <button class="nav-tab" data-view="create">Create Issue</button>
         </nav>
 
-        <div id="list-view" class="view active"></div>
+        <div id="kanban-view" class="view active"></div>
+        <div id="list-view" class="view"></div>
         <div id="detail-view" class="view"></div>
         <div id="create-view" class="view"></div>
     `;
@@ -35,6 +38,7 @@ function renderApp() {
         });
     });
 
+    renderKanbanView();
     renderListView();
     renderCreateView();
 }
@@ -53,7 +57,10 @@ function switchView(view) {
         viewEl.classList.remove('active');
     });
 
-    if (view === 'list') {
+    if (view === 'kanban') {
+        document.getElementById('kanban-view').classList.add('active');
+        loadKanbanBoard();
+    } else if (view === 'list') {
         document.getElementById('list-view').classList.add('active');
         loadIssuesList();
     } else if (view === 'detail') {
@@ -61,6 +68,258 @@ function switchView(view) {
     } else if (view === 'create') {
         document.getElementById('create-view').classList.add('active');
     }
+}
+
+// Render Kanban View
+function renderKanbanView() {
+    const kanbanView = document.getElementById('kanban-view');
+    kanbanView.innerHTML = `
+        <div class="card">
+            <div class="kanban-header">
+                <h2>Issue Tracker Board</h2>
+                <div class="kanban-filters">
+                    <div class="filter-group">
+                        <label for="kanban-filter-priority">Filter by Priority</label>
+                        <select id="kanban-filter-priority">
+                            <option value="">All Priorities</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="kanban-search">Search</label>
+                        <input type="text" id="kanban-search" placeholder="Search issues...">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="kanban-board">
+            <div class="kanban-column" data-status="New">
+                <div class="kanban-column-header">
+                    <h3>New</h3>
+                    <span class="issue-count">0</span>
+                </div>
+                <div class="kanban-column-body" id="column-New"></div>
+            </div>
+            <div class="kanban-column" data-status="InProgress">
+                <div class="kanban-column-header">
+                    <h3>In Progress</h3>
+                    <span class="issue-count">0</span>
+                </div>
+                <div class="kanban-column-body" id="column-InProgress"></div>
+            </div>
+            <div class="kanban-column" data-status="Resolved">
+                <div class="kanban-column-header">
+                    <h3>Resolved</h3>
+                    <span class="issue-count">0</span>
+                </div>
+                <div class="kanban-column-body" id="column-Resolved"></div>
+            </div>
+            <div class="kanban-column" data-status="Closed">
+                <div class="kanban-column-header">
+                    <h3>Closed</h3>
+                    <span class="issue-count">0</span>
+                </div>
+                <div class="kanban-column-body" id="column-Closed"></div>
+            </div>
+        </div>
+    `;
+
+    // Set up filter event listeners
+    document.getElementById('kanban-filter-priority')?.addEventListener('change', loadKanbanBoard);
+    document.getElementById('kanban-search')?.addEventListener('input', loadKanbanBoard);
+}
+
+// Load Kanban Board with issues
+async function loadKanbanBoard() {
+    const columns = ['New', 'InProgress', 'Resolved', 'Closed'];
+
+    // Show loading state
+    columns.forEach(status => {
+        const columnBody = document.getElementById(`column-${status}`);
+        if (columnBody) {
+            columnBody.innerHTML = '<div class="kanban-loading">Loading...</div>';
+        }
+    });
+
+    try {
+        // Get filter values
+        const priorityFilter = document.getElementById('kanban-filter-priority')?.value || '';
+        const searchText = (document.getElementById('kanban-search')?.value || '').toLowerCase();
+
+        // Fetch all issues
+        let allIssues = await getIssues({ priority: priorityFilter });
+
+        // Apply search filter
+        if (searchText) {
+            allIssues = allIssues.filter(issue =>
+                issue.title.toLowerCase().includes(searchText) ||
+                (issue.description || '').toLowerCase().includes(searchText)
+            );
+        }
+
+        // Group issues by status
+        const issuesByStatus = {
+            New: [],
+            InProgress: [],
+            Resolved: [],
+            Closed: []
+        };
+
+        allIssues.forEach(issue => {
+            const status = issue.status || 'New';
+            if (issuesByStatus[status]) {
+                issuesByStatus[status].push(issue);
+            }
+        });
+
+        // Render each column
+        columns.forEach(status => {
+            const columnBody = document.getElementById(`column-${status}`);
+            const issues = issuesByStatus[status] || [];
+
+            // Update count
+            const countEl = document.querySelector(`[data-status="${status}"] .issue-count`);
+            if (countEl) countEl.textContent = issues.length;
+
+            if (!columnBody) return;
+
+            if (issues.length === 0) {
+                columnBody.innerHTML = '<div class="kanban-empty">No issues</div>';
+            } else {
+                columnBody.innerHTML = issues.map(issue => createKanbanCard(issue)).join('');
+            }
+
+            // Setup drag and drop for the column
+            setupColumnDropZone(columnBody, status);
+        });
+
+        // Setup drag for all cards
+        setupCardDrag();
+
+    } catch (error) {
+        console.error('Failed to load Kanban board:', error);
+        columns.forEach(status => {
+            const columnBody = document.getElementById(`column-${status}`);
+            if (columnBody) {
+                columnBody.innerHTML = '<div class="kanban-error">Failed to load</div>';
+            }
+        });
+    }
+}
+
+// Create Kanban card HTML
+function createKanbanCard(issue) {
+    return `
+        <div class="kanban-card" draggable="true" data-id="${issue.id}">
+            <div class="kanban-card-header">
+                <span class="badge priority-${(issue.priority || 'low').toLowerCase()}">${escapeHtml(issue.priority || 'N/A')}</span>
+                <span class="kanban-card-id">#${issue.id.substring(0, 6)}</span>
+            </div>
+            <h4 class="kanban-card-title">${escapeHtml(issue.title)}</h4>
+            <div class="kanban-card-meta">
+                <span class="kanban-card-type">${escapeHtml(issue.type || 'N/A')}</span>
+                ${issue.location ? `<span class="kanban-card-location">📍 ${escapeHtml(issue.location)}</span>` : ''}
+            </div>
+            ${issue.severity ? `<div class="kanban-card-severity">Severity: ${issue.severity}/5</div>` : ''}
+        </div>
+    `;
+}
+
+// Setup drag functionality for cards
+function setupCardDrag() {
+    document.querySelectorAll('.kanban-card').forEach(card => {
+        card.addEventListener('dragstart', handleDragStart);
+        card.addEventListener('dragend', handleDragEnd);
+        card.addEventListener('click', (e) => {
+            if (!card.classList.contains('dragging')) {
+                showIssueDetail(card.dataset.id);
+            }
+        });
+    });
+}
+
+// Setup drop zone for columns
+function setupColumnDropZone(columnBody, status) {
+    columnBody.addEventListener('dragover', handleDragOver);
+    columnBody.addEventListener('drop', (e) => handleDrop(e, status));
+    columnBody.addEventListener('dragleave', handleDragLeave);
+}
+
+// Drag event handlers
+function handleDragStart(e) {
+    draggedIssue = {
+        id: e.target.dataset.id,
+        element: e.target
+    };
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.innerHTML);
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    document.querySelectorAll('.kanban-column-body').forEach(col => {
+        col.classList.remove('drag-over');
+    });
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+    return false;
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+async function handleDrop(e, newStatus) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const columnBody = e.currentTarget;
+    columnBody.classList.remove('drag-over');
+
+    if (!draggedIssue) return;
+
+    try {
+        // Update issue status via API
+        await updateIssue(draggedIssue.id, { status: newStatus });
+
+        // Reload the board to reflect changes
+        await loadKanbanBoard();
+
+        // Show success feedback
+        showNotification('Issue moved successfully!', 'success');
+    } catch (error) {
+        console.error('Failed to update issue:', error);
+        showNotification('Failed to move issue', 'error');
+        // Reload to restore previous state
+        await loadKanbanBoard();
+    }
+
+    draggedIssue = null;
+}
+
+// Show notification (simple toast)
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // Render Issues List View

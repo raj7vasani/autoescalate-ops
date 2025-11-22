@@ -11,6 +11,9 @@ public class SPAProperties {
     private String environmentId;
     private String apiKey;
     private String definitionId;
+    private String tokenUrl;
+    private String clientId;
+    private String clientSecret;
 
     // Getters and Setters
     public String getBaseUrl() {
@@ -43,5 +46,29 @@ public class SPAProperties {
 
     public void setDefinitionId(String definitionId) {
         this.definitionId = definitionId;
+    }
+
+    public String getTokenUrl() {
+        return tokenUrl;
+    }
+
+    public void setTokenUrl(String tokenUrl) {
+        this.tokenUrl = tokenUrl;
+    }
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    public String getClientSecret() {
+        return clientSecret;
+    }
+
+    public void setClientSecret(String clientSecret) {
+        this.clientSecret = clientSecret;
     }
 }

@@ -1,32 +1,70 @@
+# Generated files
 **/gen/
 **/edmx/
+srv/src/gen/
+srv/.flattened-pom.xml
+.flattened-pom.xml
+
+# Database files
 *.db
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+*.trace.db
 schema*.sql
+
+# Environment files
 default-env.json
 .env
+.env.local
+.env.*.local
 
+# Build directories
 **/bin/
 **/target/
-.flattened-pom.xml
+out/
+
+# IDE files
 .classpath
 .project
-.settings
+.settings/
+*.iml
+.vscode/
+.idea/
+.reloadtrigger
 
+# Node.js
 **/node/
 **/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
 
+# MTA/Cloud Foundry
 **/.mta/
 *.mtar
 
+# Logs
 *.log*
 gc_history*
 hs_err*
-*.tgz
-*.iml
+spring.log
 
-.vscode
-.idea
-.reloadtrigger
+# Archives
+*.tgz
+*.zip
+*.tar.gz
+*.jar
+*.war
+*.ear
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~

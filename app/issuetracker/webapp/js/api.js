@@ -5,9 +5,13 @@ const API_BASE_URL = '/api/issues';
 // Helper function for making API requests with error handling
 async function apiRequest(url, options = {}) {
     try {
+        // Add basic auth for mock user
+        const authHeader = 'Basic ' + btoa('authenticated:');
+
         const response = await fetch(url, {
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': authHeader,
                 ...options.headers,
             },
             ...options,

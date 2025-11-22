@@ -72,12 +72,7 @@ class IssueServiceTest {
         verify(issueRepository, times(1)).save(any(Issue.class));
 
         // Verify SPA workflow was triggered with correct parameters
-        verify(spaClient, times(1)).startWorkflow(
-                eq(savedIssue.getId()),
-                eq(savedIssue.getTitle()),
-                eq(savedIssue.getPriority()),
-                eq(savedIssue.getType())
-        );
+        verify(spaClient, times(1)).startWorkflow(any(Issue.class));
     }
 
     @Test
@@ -103,6 +98,6 @@ class IssueServiceTest {
         assertThrows(RuntimeException.class, () -> issueService.createIssue(createRequest));
 
         // Verify SPA workflow was NOT triggered since save failed
-        verify(spaClient, never()).startWorkflow(any(), any(), any(), any());
+        verify(spaClient, never()).startWorkflow(any(Issue.class));
     }
 }

@@ -13,7 +13,7 @@ spring:
       ddl-auto: ${JPA_DDL_AUTO:update}
     show-sql: ${JPA_SHOW_SQL:true}
   security:
-    enabled: ${SECURITY_ENABLED:false}
+    enabled: false
 cds:
   data-source.auto-config.enabled: false
 
@@ -25,7 +25,10 @@ spa:
   baseUrl: ${SPA_BASE_URL:https://spa-api-gateway-bpi-eu-prod.cfapps.eu10.hana.ondemand.com}
   environmentId: ${SPA_ENVIRONMENT_ID:hackatum}
   apiKey: ${SPA_API_KEY:QBvlzsXZoiatJbK9cca98l0tQRCKxSss}
-  definitionId: ${SPA_DEFINITION_ID:}
+  definitionId: ${SPA_DEFINITION_ID:IssueEscalationProcess}
+  tokenUrl: ${SPA_TOKEN_URL:https://hackatum.authentication.eu10.hana.ondemand.com/oauth/token?grant_type=client_credentials}
+  clientId: ${SPA_CLIENT_ID:sb-adcf8c2e-99c5-4ae2-9e28-c0ef5f56e78a!b605607|xsuaa!b120249}
+  clientSecret: ${SPA_CLIENT_SECRET:dc8ac31c-f9c3-4fe4-97c1-b951daadfeb7$tHte333ltNrW_v7ws864AkKLQGhI0-uX7l93Pxyq7BU=}
 ---
 management:
   endpoint:
